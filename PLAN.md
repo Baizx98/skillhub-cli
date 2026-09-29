@@ -14,7 +14,7 @@
 | 文件、Git 操作 | 标准库足够，调用系统 Git | 标准库同样足够，原型开发更快 |
 | 后续维护 | 编译和类型检查适合路径、状态和错误分支较多的 CLI | 开发门槛较低，但运行环境更分散 |
 
-**选择 Go。**这里的主要目标是让三种操作系统的用户直接下载 `skillhub` 使用；Python 的开发速度优势不足以抵消运行环境与分发差异。symlink 的 Windows 权限限制属于操作系统限制，换语言也无法消除。[Go 构建说明](https://go.dev/doc/tutorial/compile-install)、[Python symlink 文档](https://docs.python.org/3/library/os.html#os.symlink)、[Microsoft symlink 文档](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-createsymboliclinkw)。当前开发机尚无 Go 工具链，编码阶段需先安装。
+**选择 Go。**这里的主要目标是让三种操作系统的用户直接下载 `skillhub` 使用；Python 的开发速度优势不足以抵消运行环境与分发差异。symlink 的 Windows 权限限制属于操作系统限制，换语言也无法消除。[Go 构建说明](https://go.dev/doc/tutorial/compile-install)、[Python symlink 文档](https://docs.python.org/3/library/os.html#os.symlink)、[Microsoft symlink 文档](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-createsymboliclinkw)。
 
 ## 仓库与本地状态
 
@@ -36,7 +36,7 @@
 - 无作用域参数时，从当前目录向上查找 Git 工作区；找到则使用 Git 根目录的 `.agents/skills/<name>`。若不在 Git 项目中，默认安装到当前用户的 `~/.agents/skills/<name>`。非 Git 项目可用 `--project <dir>` 明确指定项目根目录。
 - 若自动检测到的项目位于 `SKILLHUB_HOME` 内，则报错并要求显式指定目标，避免把 skill 链接装回托管仓库。
 - `--global` 总是安装到当前用户的 `~/.agents/skills/<name>`；`--project <dir>` 总是安装到指定的现有项目目录。二者互斥，不写入系统管理员目录。
-- 不传 `--agent` 时，对所有检测到的受支持 Agent 执行。首版只有 `codex`，检测条件为 `codex` 可执行文件在 PATH 中，或用户已有 `~/.codex` 目录；`--agent codex` 可显式选择。没有检测结果时报告原因，不静默成功。
+- 不传 `--agent` 时，对所有检测到的受支持 Agent 执行。首版只有 `codex`，检测条件为 `codex` 可执行文件在 PATH 中，或 Codex 主目录已存在；主目录优先使用 `CODEX_HOME`，未设置时才使用 `~/.codex`。`--agent codex` 可显式选择。没有检测结果时报告原因，不静默成功。
 - 后续增加 Agent 时，只需扩展探测与目标目录映射。首版不会为其他 Agent 创建任何目录或链接。
 
 Codex 官方文档列出项目级与用户级 `.agents/skills`，并确认支持指向 skill 文件夹的 symlink：[OpenAI Docs：Build skills](https://learn.chatgpt.com/docs/build-skills)。项目中的 symlink 指向用户主目录，通常不可移植；命令输出提醒不要把该链接提交到项目仓库，CLI 不擅自改 `.gitignore`。
@@ -60,11 +60,11 @@ skillhub publish <path-to-skill>             # 将扫描到的单个 skill 提�
 skillhub --version
 ```
 
-`scan` 只读取当前项目（若存在）和用户级 `.agents/skills/`，同时读取已有的 `.codex/skills/` 作为迁移来源；不扫描管理员或系统内置 skill。结果显示真实路径、名称及“已管理/可发布/无效”状态。`publish` 要求显式给出 `scan` 列出的具体路径，不自动批量上传；对已指向本仓库的链接跳过，对同名仓库 skill 报冲突，不暗中覆盖。上传前显示将新增的文件列表，确认后复制到 `repo/skills/<name>`，执行 `git add`、提交、推送；不提交扫描目录中的其他文件。
+`scan` 只读取当前项目（若存在）和用户级 `.agents/skills/`，同时读取 Codex 主目录下已有的 `skills/` 作为迁移来源；主目录按 `CODEX_HOME` 或 `~/.codex` 解析。项目内也读取 `.codex/skills/`。不扫描管理员或系统内置 skill。结果显示真实路径、名称及“已管理/可发布/无效”状态。`publish` 要求显式给出 `scan` 列出的具体路径，不自动批量上传；对已指向本仓库的链接跳过，对同名仓库 skill 报冲突，不暗中覆盖。上传前显示将新增的文件列表，确认后复制到 `repo/skills/<name>`，执行 `git add`、提交、推送；不提交扫描目录中的其他文件。
 
 ## 安全与同步规则
 
-- 使用系统 Git 和参数数组，不通过 shell 拼接命令；仅接受 `github.com` 的 HTTPS 或 SSH 仓库地址，拒绝 URL 内嵌凭据。`repo set` 仅用于首次配置，同一仓库可重复执行；已有安装项时拒绝改成另一仓库，以免链接悄然指向新内容。
+- 使用系统 Git 和参数数组，不通过 shell 拼接命令；仅接受 `github.com` 的 HTTPS 或 SSH 仓库地址，拒绝 URL 内嵌凭据。`repo set` 仅用于首次配置，同一仓库可重复执行；首版拒绝原地改成另一仓库，以免丢失本地提交或让链接悄然指向新内容。
 - 所有安装项使用**指向目录的绝对 symlink**。创建前核对来源存在；若目标已有普通目录、文件或非本工具管理的链接，报冲突且不覆盖。移除或修复前用 `Lstat` 核对链接仍指向清单记录的目标，只删除或替换该链接本身。
 - `repo sync` 要求仓库工作树干净，使用 `fetch` 和 fast-forward，不做 `reset --hard`。更新前检查远端仍包含已安装的 skill；否则报出会失效的链接并中止。symlink 指向稳定的仓库路径，因此同步成功后立即呈现新内容，无需重装。
 - `publish` 先同步、检查同名冲突与待复制内容，再复制、提交、推送。推送失败时保留本地提交，记入历史并提示 `repo push`；不自动改写历史或强推。只有显式 `publish` 才会向远端写入。
