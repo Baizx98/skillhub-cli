@@ -10,6 +10,15 @@
 go install ./cmd/skillhub
 ```
 
+`go install` 会把可执行文件放到 `GOBIN`，未设置时放到 `$(go env GOPATH)/bin`；该目录还必须在 `PATH` 中。在 Linux/macOS 的默认 Go 配置下，可先在当前终端执行：
+
+```sh
+export PATH="$(go env GOPATH)/bin:$PATH"
+skillhub --version
+```
+
+需要长期生效时，把 `export PATH=...` 一行加入所用 shell 的启动文件（例如 `~/.zshrc`）。Windows 用户可用 `go env GOBIN` / `go env GOPATH` 找到安装目录，再将它加入用户级 `Path` 环境变量。若 `GOBIN` 已设置，应将 `GOBIN` 对应目录加入 `PATH`。
+
 运行时需有 Git。Windows 创建目录 symlink 需要开启“开发者模式”或使用具备符号链接权限的账户；权限不足时，`skillhub` 会报错，不会改为复制安装。
 
 ## 准备个人仓库
